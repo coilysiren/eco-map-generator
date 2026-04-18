@@ -16,7 +16,12 @@ Sequence run by `run()`:
   2. Remotely edit `Configs/Network.eco` on the server's disk to set
      PublicServer=true + Password="". Piped as a Python script over ssh
      stdin so quoting stays sane.
-  3. (Optional) `inv eco.restart` so the public flip takes effect.
+  3. (Optional) SIGTERM the eco-server process so the public flip takes
+     effect. systemd's Restart=on-failure / RestartSec policy brings the
+     service back up automatically, no sudo needed (`inv eco.restart`
+     would shell out to `sudo systemctl restart` and fail under
+     non-interactive ssh — same foot-gun the roll task already worked
+     around in eed51c4 / 84e38d5).
 """
 
 from invoke.context import Context
@@ -44,7 +49,7 @@ def run(ctx: Context, *, restart: bool = True) -> None:
     remote.run_python(ctx, FLIP_SCRIPT)
 
     if restart:
-        print("-- restarting eco-server so the flip takes effect")
-        remote.restart_server(ctx)
+        print("-- sigterm eco-server so the flip takes effect (systemd auto-restarts)")
+        remote.sigterm_server(ctx)
     else:
         print("skipped restart (--no-restart); the flip takes effect on next restart")
