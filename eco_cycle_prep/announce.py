@@ -322,7 +322,13 @@ def render_server_ad(cycle: int, start_ts: int) -> str:
 
 def render_sirens_configs_channel(cycle: int, start_ts: int) -> str:
     """Verbose Discord-style announcement for Sirens' own #eco-configs channel.
-    Budgeted to Discord's 2000-char message limit (caller should check)."""
+    Budgeted to Discord's 2000-char message limit (caller should check).
+
+    TODO: multi-message split. We currently clip mod.io links, per-mod
+    blurbs, per-config rationale, and worldgen theme notes to hit the
+    2000-char cap. Future iteration should render a list of messages
+    (header + configs / content-mods / code-mods / gameplay-and-world)
+    and post them in sequence. Template comments mark what to add."""
     identity = load_identity()
     invite = ssm.get("/discord/server-ad-invite")
     collab_long = COLLAB_LONG.get(_read_collab_raw(), _read_collab_raw())
