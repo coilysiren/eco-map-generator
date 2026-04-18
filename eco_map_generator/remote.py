@@ -13,13 +13,27 @@ INFRA_DIR = "~/projects/infrastructure"
 ECO_SERVER_DIR = "/home/kai/Steam/steamapps/common/EcoServer"
 
 
-def ssh(ctx: Context, remote_cmd: str, *, echo: bool = True, hide: bool = False):
-    """Run a single command on kai-server and return the result."""
-    return ctx.run(f'ssh {HOST} {_shell_quote(remote_cmd)}', echo=echo, hide=hide, pty=False)
-
-
-def _shell_quote(s: str) -> str:
-    return "'" + s.replace("'", "'\\''") + "'"
+def ssh(
+    ctx: Context,
+    remote_cmd: str,
+    *,
+    echo: bool = True,
+    capture: bool = False,
+    check: bool = True,
+) -> subprocess.CompletedProcess:
+    """Run a single command on kai-server via subprocess (avoids invoke's
+    cmd.exe shell-quoting issues on Windows, which mangle single quotes and
+    append stray apostrophes to the last token)."""
+    if echo:
+        print(f"$ ssh {HOST} {remote_cmd}")
+    return subprocess.run(
+        ["ssh", HOST, remote_cmd],
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=capture,
+        check=check,
+    )
 
 
 def steamcmd_update(ctx: Context):
@@ -48,13 +62,13 @@ def reset_world_storage(ctx: Context):
 
 
 def server_is_active(ctx: Context) -> bool:
-    r = ssh(ctx, "systemctl is-active eco-server || true", echo=False, hide=True)
-    return r.stdout.strip() == "active"
+    r = ssh(ctx, "systemctl is-active eco-server || true", echo=False, capture=True)
+    return (r.stdout or "").strip() == "active"
 
 
 def server_is_activating(ctx: Context) -> bool:
-    r = ssh(ctx, "systemctl is-active eco-server || true", echo=False, hide=True)
-    return r.stdout.strip() in {"activating", "reloading"}
+    r = ssh(ctx, "systemctl is-active eco-server || true", echo=False, capture=True)
+    return (r.stdout or "").strip() in {"activating", "reloading"}
 
 
 def restart_server(ctx: Context):
@@ -84,6 +98,8 @@ def stream_server_logs(prefix: str = "[eco] ") -> Iterator[None]:
         stderr=subprocess.STDOUT,
         bufsize=1,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     def _pump() -> None:

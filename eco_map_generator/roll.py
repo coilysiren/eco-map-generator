@@ -7,7 +7,7 @@ from pathlib import Path
 
 from invoke.context import Context
 
-from . import discord_rest, preview, remote, ssm, worldgen
+from . import discord_rest, local, preview, remote, ssm, worldgen
 
 ROLLS_DIR = Path(__file__).resolve().parent.parent / "rolls"
 
@@ -28,9 +28,9 @@ def _next_roll_number(cycle_dir: Path) -> int:
     return (max(nums) if nums else 0) + 1
 
 
-def _git(ctx: Context, cwd: Path, cmd: str, *, echo: bool = True) -> str:
-    r = ctx.run(f"git -C {cwd} {cmd}", echo=echo, hide="stdout" if not echo else False)
-    return r.stdout.strip() if r else ""
+def _git(cwd: Path, *args: str, capture: bool = False, echo: bool = True) -> str:
+    r = local.git(cwd, *args, capture=capture, echo=echo)
+    return (r.stdout or "").strip() if capture else ""
 
 
 def _load_prior_hash(cycle_dir: Path) -> str | None:
@@ -60,10 +60,11 @@ def _one_roll(ctx: Context, cycle: int, seed: int) -> Path:
     worldgen.snapshot(out_dir / "WorldGenerator.eco")
 
     eco_configs = worldgen.ECO_CONFIGS
-    _git(ctx, eco_configs, "add Configs/WorldGenerator.eco")
-    if _git(ctx, eco_configs, "status --porcelain Configs/WorldGenerator.eco", echo=False):
-        _git(ctx, eco_configs, f'commit -m "cycle-{cycle} roll {roll_n}: seed {seed}"')
-        _git(ctx, eco_configs, "push")
+    _git(eco_configs, "add", "Configs/WorldGenerator.eco")
+    if _git(eco_configs, "status", "--porcelain", "Configs/WorldGenerator.eco",
+            capture=True, echo=False):
+        _git(eco_configs, "commit", "-m", f"cycle-{cycle} roll {roll_n}: seed {seed}")
+        _git(eco_configs, "push")
     else:
         print("(seed unchanged; skipping commit)")
 

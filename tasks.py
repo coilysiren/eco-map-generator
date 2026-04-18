@@ -4,7 +4,15 @@ Phase 1 (weekly):   inv prep --cycle 13
 Phase 2 (repeated): inv roll --cycle 13 [--count N] [--seed N]
 """
 
-from invoke import task
+import sys
+
+# Force UTF-8 on stdout/stderr so unicode in Discord content and Eco logs
+# doesn't blow up on Windows (default cp1252).
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
+from invoke import task  # noqa: E402
 
 
 @task(help={"cycle": "Current Eco cycle number (e.g. 13)"})

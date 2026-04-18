@@ -5,7 +5,7 @@ from pathlib import Path
 
 from invoke.context import Context
 
-from . import discord_rest, remote, ssm, worldgen
+from . import discord_rest, local, remote, ssm, worldgen
 
 PREP_DIR = Path(__file__).resolve().parent.parent / "rolls" / "_prep"
 
@@ -64,7 +64,7 @@ def run(ctx: Context, *, cycle: int) -> None:
     remote.steamcmd_update(ctx)
 
     print("-- pulling eco-configs locally")
-    ctx.run(f"git -C {worldgen.ECO_CONFIGS} pull --ff-only", echo=True)
+    local.git(worldgen.ECO_CONFIGS, "pull", "--ff-only")
 
     print("-- pulling infrastructure on kai-server")
     remote.infra_pull(ctx)
