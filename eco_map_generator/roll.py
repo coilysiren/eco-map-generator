@@ -71,14 +71,18 @@ def _one_roll(ctx: Context, cycle: int, seed: int) -> Path:
     remote.copy_configs(ctx)
     remote.reset_world_storage(ctx)
 
-    if not remote.server_is_activating(ctx):
-        remote.restart_server(ctx)
-    else:
-        print("server already restarting; skipping inv eco.restart")
-
     prior_hash = _load_prior_hash(cycle_dir)
-    print("waiting for preview (this can take a few minutes)...")
-    gif, gif_hash = preview.wait_for_preview(prior_hash=prior_hash)
+
+    # Start streaming eco-server logs *before* the restart so the full
+    # shutdown → steamcmd pre → boot → world-gen → preview sequence is visible.
+    with remote.stream_server_logs():
+        if not remote.server_is_activating(ctx):
+            remote.restart_server(ctx)
+        else:
+            print("server already restarting; skipping inv eco.restart")
+
+        print("waiting for preview (streaming eco-server logs until stable)...")
+        gif, gif_hash = preview.wait_for_preview(prior_hash=prior_hash)
     gif_path = preview.save(gif, out_dir / "WorldPreview.gif")
     print(f"preview captured: {gif_path} ({len(gif)} bytes, sha256={gif_hash[:12]})")
 

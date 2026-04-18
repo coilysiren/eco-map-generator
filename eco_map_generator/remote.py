@@ -1,5 +1,11 @@
 """SSH helpers for kai-server. Uses the user's configured ssh client; assumes keys."""
 
+import contextlib
+import subprocess
+import sys
+import threading
+from collections.abc import Iterator
+
 from invoke.context import Context
 
 HOST = "kai@kai-server"
@@ -53,3 +59,53 @@ def server_is_activating(ctx: Context) -> bool:
 
 def restart_server(ctx: Context):
     ssh(ctx, f"cd {INFRA_DIR} && inv eco.restart")
+
+
+@contextlib.contextmanager
+def stream_server_logs(prefix: str = "[eco] ") -> Iterator[None]:
+    """Stream `journalctl -u eco-server -f` from kai-server to stdout for the
+    duration of the `with` block. Lines are prefixed so they don't blend into
+    local output. On exit, the remote follower is terminated.
+    """
+    cmd = [
+        "ssh",
+        "-o",
+        "ServerAliveInterval=15",
+        "-o",
+        "ServerAliveCountMax=4",
+        HOST,
+        # -n 0: don't replay history, only new lines from now on
+        "journalctl -u eco-server -f -n 0 --output=cat",
+    ]
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        text=True,
+    )
+
+    def _pump() -> None:
+        assert proc.stdout is not None
+        try:
+            for line in proc.stdout:
+                sys.stdout.write(prefix + line)
+                sys.stdout.flush()
+        except Exception:  # noqa: BLE001
+            pass
+
+    t = threading.Thread(target=_pump, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        try:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=3)
+        finally:
+            t.join(timeout=2)
