@@ -10,7 +10,10 @@ TIMEOUT = httpx.Timeout(15.0, connect=10.0)
 
 @lru_cache(maxsize=1)
 def _headers() -> dict[str, str]:
-    token = ssm.get("/eco/discord-bot-token")
+    # sirens-echo is the bot this tool posts through. /eco/discord-bot-token
+    # belongs to eco-agent / DiscordLink and should stay out of cycle-prep
+    # traffic (different bot, different authorship, different scope).
+    token = ssm.get("/sirens-echo/discord-bot-token")
     return {"Authorization": f"Bot {token}"}
 
 
