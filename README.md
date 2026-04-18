@@ -1,3 +1,7 @@
+[![Eco by Strange Loop Games](https://cdn.cloudflare.steamstatic.com/steam/apps/382310/header.jpg)](https://store.steampowered.com/app/382310/Eco/)
+
+<sub>Banner: Steam header for [Eco](https://store.steampowered.com/app/382310/Eco/) by [Strange Loop Games](https://strangeloopgames.com/). Used here for attribution; not my artwork.</sub>
+
 # eco-cycle-prep
 
 End-to-end tooling for preparing a fresh cycle on my [Eco](https://play.eco/)
@@ -76,7 +80,7 @@ uv sync
 ```
 
 SSM parameters required (see `coilyco-ai/AGENTS.md` for the full
-inventory): `/eco/server-id`, `/eco/discord-bot-token`,
+inventory): `/eco/server-id`, `/sirens-echo/discord-bot-token`,
 `/discord/server-id`, `/discord/server-ad-invite`,
 `/discord/channel/{cycle-current,eco-configs,suggestions,suggestions-forum}`,
 `/modio/api-key`.
