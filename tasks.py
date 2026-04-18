@@ -41,6 +41,42 @@ def brief(ctx, cycle, days=60):
     prep_module.run_brief(ctx, cycle=int(cycle), days=int(days))
 
 
+@task(help={"check": "Print lockdown state and exit without running anything"})
+def mods_sync(ctx, check=False):
+    """Clone eco-mods + eco-mods-public on kai-server and copy to the Eco install.
+    Lockdown-gated (Network.eco must be PublicServer=false, Password=password)."""
+    from eco_map_generator import mods, safety
+
+    safety.assert_network_locked_down()
+    if check:
+        print("lockdown ok — would call eco.copy-private-mods + eco.copy-public-mods")
+        return
+    mods.sync(ctx)
+
+
+@task(
+    help={
+        "names": "Comma-separated mod folder names to remove (UserCode/<name>). "
+        "Defaults to every DF* mod — Deepflame asked for a disable in cycle 13."
+    }
+)
+def mods_disable(ctx, names=""):
+    """rm -rf the listed mod folders from kai-server's EcoServer Mods/UserCode/.
+    Run AFTER mods-sync (sync reinstalls everything from git)."""
+    from eco_map_generator import mods
+
+    if names:
+        arr = [n.strip() for n in names.split(",") if n.strip()]
+    else:
+        arr = [
+            "DFBargeIndustries",
+            "DFEasierShopCart",
+            "DFEngineering",
+            "DFGlobalPlanetaryDefense",
+        ]
+    mods.disable_on_server(ctx, arr)
+
+
 @task(
     help={
         "cycle": "Current Eco cycle number",

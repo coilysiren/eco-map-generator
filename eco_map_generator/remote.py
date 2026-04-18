@@ -11,6 +11,9 @@ from invoke.context import Context
 HOST = "kai@kai-server"
 INFRA_DIR = "~/projects/infrastructure"
 ECO_SERVER_DIR = "/home/kai/Steam/steamapps/common/EcoServer"
+# Non-login ssh doesn't source ~/.bashrc, so pyenv shims aren't on PATH.
+# The `inv` binary lives in ~/.pyenv/shims/inv on kai-server.
+REMOTE_INV = "/home/kai/.pyenv/shims/inv"
 
 
 def ssh(
@@ -47,7 +50,7 @@ def infra_pull(ctx: Context):
 
 def copy_configs(ctx: Context):
     """Run `inv eco.copy-configs --with-world-gen` on kai-server."""
-    ssh(ctx, f"cd {INFRA_DIR} && inv eco.copy-configs --with-world-gen")
+    ssh(ctx, f"cd {INFRA_DIR} && {REMOTE_INV} eco.copy-configs --with-world-gen")
 
 
 def reset_world_storage(ctx: Context):
@@ -72,7 +75,7 @@ def server_is_activating(ctx: Context) -> bool:
 
 
 def restart_server(ctx: Context):
-    ssh(ctx, f"cd {INFRA_DIR} && inv eco.restart")
+    ssh(ctx, f"cd {INFRA_DIR} && {REMOTE_INV} eco.restart")
 
 
 @contextlib.contextmanager
