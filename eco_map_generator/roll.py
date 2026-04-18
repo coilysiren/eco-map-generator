@@ -7,7 +7,7 @@ from pathlib import Path
 
 from invoke.context import Context
 
-from . import discord_rest, local, preview, remote, ssm, worldgen
+from . import discord_rest, local, preview, remote, safety, ssm, worldgen
 
 ROLLS_DIR = Path(__file__).resolve().parent.parent / "rolls"
 
@@ -55,6 +55,8 @@ def _one_roll(ctx: Context, cycle: int, seed: int) -> Path:
 
     started_at = datetime.now(timezone.utc).isoformat()
     print(f"\n=== cycle {cycle} roll {roll_n}  seed={seed} ===")
+
+    safety.assert_network_locked_down()
 
     worldgen.set_seed(seed)
     worldgen.snapshot(out_dir / "WorldGenerator.eco")
