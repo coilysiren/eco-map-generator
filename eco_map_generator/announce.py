@@ -30,6 +30,8 @@ IDENTITY_PATH = PREP_DIR / "server-identity.json"
 
 # Folder names in eco-mods/Mods/UserCode/ that aren't player-facing "mods"
 # (overrides, tooling scaffolding) and should be hidden from either message.
+# Enabling/disabling whole mods is done by editing the eco-mods source repo,
+# not by listing them here.
 CONTENT_MODS_HIDE = {
     "AutoGen",
     "Objects",
@@ -37,11 +39,6 @@ CONTENT_MODS_HIDE = {
     "SkillsRequirements",  # support lib, shown via "Skill Trees" in Code Mods
     "NutritionMod",  # support lib for Nid/NutriView
     "CavRnMods",  # internal helper package
-    # Deepflame — per 2026-04-16 ask, disabled for cycle 13
-    "DFBargeIndustries",
-    "DFEasierShopCart",
-    "DFEngineering",
-    "DFGlobalPlanetaryDefense",
     # Listed under "Custom Content Mods" instead (it's a BunWulf mod)
     "BunWulfEducational",
 }
@@ -58,6 +55,7 @@ CONTENT_DISPLAY = {
     "AnimalHusbandry": "Animal Husbandry",
     "Beekeeping": "Beekeeping",
     "BunWulfBiochemical": "Biochemist",
+    "DFEasierShopCart": "Easier Shop Cart",
     "DirtDecomposition": "Dirt Decomposition",
     "ElixrModsUNC": "Elixir Mods Trucking",
     "FishingReloaded": "Fishing",

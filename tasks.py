@@ -88,23 +88,19 @@ def eco_configs_post(ctx, cycle):
 @task(
     help={
         "names": "Comma-separated mod folder names to remove (UserCode/<name>). "
-        "Defaults to every DF* mod — Deepflame asked for a disable in cycle 13."
+        "Prefer deleting from the eco-mods repo instead; use this only for "
+        "ephemeral overrides between syncs."
     }
 )
-def mods_disable(ctx, names=""):
+def mods_disable(ctx, names):
     """rm -rf the listed mod folders from kai-server's EcoServer Mods/UserCode/.
-    Run AFTER mods-sync (sync reinstalls everything from git)."""
+    Note: the next `inv mods-sync` will re-deposit anything still in the
+    eco-mods or eco-mods-public source repos."""
     from eco_map_generator import mods
 
-    if names:
-        arr = [n.strip() for n in names.split(",") if n.strip()]
-    else:
-        arr = [
-            "DFBargeIndustries",
-            "DFEasierShopCart",
-            "DFEngineering",
-            "DFGlobalPlanetaryDefense",
-        ]
+    arr = [n.strip() for n in names.split(",") if n.strip()]
+    if not arr:
+        raise ValueError("--names is required; pass e.g. --names=DFBargeIndustries")
     mods.disable_on_server(ctx, arr)
 
 
