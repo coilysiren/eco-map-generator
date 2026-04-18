@@ -75,7 +75,8 @@ def run(
         print(f"largest landmass ctr:   "
               f"({features.largest_landmass_centroid[0]:+.2f}, "
               f"{features.largest_landmass_centroid[1]:+.2f}) "
-              f"[-1..1, +x east, +y south]")
+              f"[image-space [-1..1]; world is a torus, so absolute "
+              f"coords aren't meaningful]")
         print("biome pixel breakdown (land fraction, centroid, spread):")
         for kind in sorted(features.kind_pixels, key=lambda k: -features.kind_pixels[k]):
             frac = features.land_kind_fraction(kind)

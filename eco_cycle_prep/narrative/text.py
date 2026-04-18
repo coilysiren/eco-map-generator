@@ -54,59 +54,54 @@ def _top_biomes(features: Features, n: int = 5) -> list[tuple[str, float]]:
     return ranked[:n]
 
 
-def _direction(cx: float, cy: float, *, edge_bias: float = 0.25) -> str:
-    """Map a normalized centroid (cx, cy) with cx>0 east / cy>0 south into
-    a compass-ish phrase. Returns "center" if the centroid sits near the
-    origin relative to `edge_bias`. This uses image-up == north convention,
-    which is how players read a top-down preview."""
-    ns = -cy  # flip y so positive == north
-    ew = cx
-    if abs(ns) < edge_bias and abs(ew) < edge_bias:
-        return "center of the map"
-
-    def axis(mag: float, pos: str, neg: str) -> str:
-        if mag > edge_bias:
-            return pos
-        if mag < -edge_bias:
-            return neg
-        return ""
-
-    ns_word = axis(ns, "north", "south")
-    ew_word = axis(ew, "east", "west")
-    parts = [p for p in (ns_word, ew_word) if p]
-    if len(parts) == 2:
-        return f"{parts[0]}{parts[1]}"  # "northeast", "southwest", etc.
-    if len(parts) == 1:
-        return parts[0]
-    return "center"
+# Maximum distance between two points on a wrapped unit torus whose
+# coordinates live in [-1, 1]. Used to normalize torus distances into a
+# 0-1 closeness score.
+_TORUS_MAX_DIST = 2 ** 0.5
 
 
-def _locational_phrase(kind: str, f: Features, *, terse: bool = False) -> str:
-    """'in the southeast' / 'spread across the map' depending on spread.
+def _torus_distance(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Distance between two normalized centroids on a wrapped [-1, 1]²
+    torus. Eco's worlds wrap at every edge, so the shortest path between
+    two points may cross a seam — this accounts for that."""
+    dx = abs(a[0] - b[0])
+    dy = abs(a[1] - b[1])
+    dx = min(dx, 2.0 - dx)
+    dy = min(dy, 2.0 - dy)
+    return (dx * dx + dy * dy) ** 0.5
 
-    If terse=True, collapses long-form phrasings into compact forms
-    suitable for appearing inside a comma-separated list."""
-    center = f.kind_centroids.get(kind)
-    spread = f.kind_spreads.get(kind, 0.0)
-    if center is None:
-        return ""
-    direction = _direction(*center)
-    central = direction == "center of the map"
+
+def _spread_phrase(spread: float, *, tight_only: bool = False) -> str:
+    """Descriptive clustering character. Returns "" when the spread is
+    unremarkable; only surfaces commentary on tight clusters or very
+    scattered biomes. No absolute directions — the world is a torus.
+
+    Pass `tight_only=True` for runners-up, where "scattered across the
+    world" would usually duplicate the same phrasing on the dominant
+    biome and drain the paragraph of variety."""
     if spread <= 0.28:
-        if central:
-            return "clustered near the center"
-        return f"clustered in the {direction}"
-    if spread <= 0.40:
-        if central:
-            return "distributed unevenly across the interior"
-        if terse:
-            return f"favoring the {direction}"
-        return f"concentrated toward the {direction}"
-    if central:
-        return "scattered across the map"
-    if terse:
-        return f"leaning {direction}"
-    return f"spread broadly, leaning {direction}"
+        return "concentrated in one patch"
+    if not tight_only and spread >= 0.55:
+        return "scattered across the world"
+    return ""
+
+
+def _relative_phrase(kind: str, ref_kind: str, f: Features) -> str:
+    """Position of `kind` relative to `ref_kind` on the toroidal world.
+
+    Returns "" unless the two biomes sit notably far apart. On a torus,
+    absolute positions are meaningless; only pairwise relationships are
+    stable narrative color."""
+    a = f.kind_centroids.get(kind)
+    b = f.kind_centroids.get(ref_kind)
+    if a is None or b is None or kind == ref_kind:
+        return ""
+    dist = _torus_distance(a, b) / _TORUS_MAX_DIST  # 0..1
+    if dist >= 0.70:
+        return f"on the far side of the world from the {BIOME_LABELS.get(ref_kind, ref_kind)}"
+    if dist >= 0.55:
+        return f"across the world from the {BIOME_LABELS.get(ref_kind, ref_kind)}"
+    return ""
 
 
 def _paragraph_shape(f: Features) -> str:
@@ -117,7 +112,7 @@ def _paragraph_shape(f: Features) -> str:
 
     if f.continent_count == 0:
         return (
-            f"A {world_m}-meter square world that reads as almost pure ocean "
+            f"A {world_m}-meter world that reads as almost pure ocean "
             f"({water_pct}% open water). No landmass is large enough to call "
             "a continent; whatever land appears is scattered micro-islands."
         )
@@ -130,7 +125,6 @@ def _paragraph_shape(f: Features) -> str:
     continent_verb = "occupies" if f.continent_count == 1 else "occupy"
 
     largest_frac = f.largest_landmass_pixels / f.total_pixels if f.total_pixels else 0
-    largest_dir = _direction(*f.largest_landmass_centroid, edge_bias=0.20)
 
     if f.island_count == 0:
         island_clause = "with no separate islands of note"
@@ -143,18 +137,14 @@ def _paragraph_shape(f: Features) -> str:
 
     lead = (
         f"{continent_word} {continent_verb} {land_pct}% of a {world_m}-meter "
-        f"({chunks}-chunk) square world, {island_clause}."
+        f"({chunks}-chunk) world, {island_clause}."
     )
 
+    # The world is a torus — absolute "anchored in the X" claims aren't
+    # meaningful. Only surface the *relative* scale of the biggest landmass.
     anchor_line = ""
-    if f.continent_count == 1 and largest_dir != "center of the map":
-        anchor_line = f" The main landmass is anchored in the {largest_dir}."
-    elif f.continent_count > 1 and largest_frac > 0.40:
-        if largest_dir != "center of the map":
-            anchor_line = (f" The biggest landmass anchors the {largest_dir} "
-                           f"and dwarfs its neighbors.")
-        else:
-            anchor_line = " One landmass fills the middle of the world and dwarfs the rest."
+    if f.continent_count > 1 and largest_frac > 0.40:
+        anchor_line = " The biggest landmass dwarfs its neighbors."
     elif f.continent_count > 1 and 0.25 < largest_frac <= 0.40:
         anchor_line = " The continents differ noticeably in scale but none overwhelms the others."
 
@@ -201,7 +191,6 @@ def _paragraph_biomes(f: Features) -> str:
 
     first_kind, first_frac = top[0]
     first_label = BIOME_LABELS.get(first_kind, first_kind)
-    first_loc = _locational_phrase(first_kind, f, terse=True)
     if first_frac >= 0.30:
         lead = f"The land is dominated by {first_label}"
     elif first_frac >= 0.20:
@@ -211,16 +200,30 @@ def _paragraph_biomes(f: Features) -> str:
     else:
         lead = f"{first_label.capitalize()} narrowly edges out the others"
 
-    lead += f" ({round(first_frac * 100)}% of land, {first_loc})"
+    # Parenthetical for the lead biome: percent + clustering character
+    # (if notable). No absolute directions — the world wraps.
+    first_spread = _spread_phrase(f.kind_spreads.get(first_kind, 0.0))
+    lead_parts = [f"{round(first_frac * 100)}% of land"]
+    if first_spread:
+        lead_parts.append(first_spread)
+    lead += f" ({', '.join(lead_parts)})"
 
-    # Runners-up with their own locations — keeps the paragraph from
-    # being a flat list. Terse locational phrasing inside the list so
-    # three back-to-back entries don't all repeat "spread broadly."
+    # Runners-up. Each runner gets its percentage; optionally a relative-
+    # distance note (if it sits far from the dominant biome) and a
+    # clustering-character note (if tight or very scattered). Middle-of-
+    # the-road biomes get no qualifier so the list stays tight.
     runner_bits: list[str] = []
     for kind, frac in top[1:4]:
         label = BIOME_LABELS.get(kind, kind)
-        loc = _locational_phrase(kind, f, terse=True)
-        runner_bits.append(f"{label} at {round(frac * 100)}% {loc}")
+        rel = _relative_phrase(kind, first_kind, f)
+        spread_note = _spread_phrase(f.kind_spreads.get(kind, 0.0),
+                                     tight_only=True)
+        qualifiers = [q for q in (rel, spread_note) if q]
+        if qualifiers:
+            runner_bits.append(f"{label} at {round(frac * 100)}% "
+                               + " and ".join(qualifiers))
+        else:
+            runner_bits.append(f"{label} at {round(frac * 100)}%")
     if runner_bits:
         if len(runner_bits) == 1:
             lead += f". Behind it, {runner_bits[0]}"

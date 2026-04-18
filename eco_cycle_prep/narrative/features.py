@@ -40,9 +40,13 @@ class Features:
     coastline_pixels: int = 0
     ice_cap_north: bool = False
     ice_cap_south: bool = False
-    # Per-kind spatial stats, normalized to [-1, 1] with origin at map center.
-    # cx>0 = east, cy>0 = south. spread is mean pixel distance from centroid
-    # in the same normalized space (0 = all in one spot, ~0.5 = map-wide).
+    # Per-kind spatial stats in normalized image-space coordinates. Origin
+    # at image center, +x right, +y down, range [-1, 1]. Absolute values
+    # are not meaningful narratively — the Eco world is a torus and the
+    # GIF's seam is arbitrary. Only *pairwise* torus distances between
+    # centroids convey stable information (see text._torus_distance).
+    # `spread` is the mean pixel distance from centroid in the same
+    # normalized space (0 = all in one spot, ~0.5 = map-wide).
     kind_centroids: dict[str, tuple[float, float]] = field(default_factory=dict)
     kind_spreads: dict[str, float] = field(default_factory=dict)
     # Config
@@ -153,9 +157,11 @@ def _water_components(water_mask: list[list[bool]]) -> tuple[int, int, int]:
 def _largest_component_centroid(
     mask: list[list[bool]],
 ) -> tuple[int, tuple[float, float]]:
-    """Return (size_of_largest, centroid_normalized). Normalized centroid
-    is (cx, cy) in [-1, 1] with origin at the image center, +x east, +y
-    south (image-space conventions; callers map to compass words)."""
+    """Return (size_of_largest, centroid_normalized). Centroid is (cx, cy)
+    in normalized image-space: origin at the image center, +x right, +y
+    down, range [-1, 1]. These aren't compass directions — the Eco world
+    is a torus — so callers must only use centroids *relative* to each
+    other, not as absolute positions."""
     h = len(mask)
     w = len(mask[0]) if h else 0
     if not w or not h:
