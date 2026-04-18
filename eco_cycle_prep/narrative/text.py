@@ -230,39 +230,32 @@ def _paragraph_biomes(f: Features) -> str:
                      + f", and {runner_bits[-1]}")
     lead += "."
 
-    # Config-vs-realized commentary for the handful of biomes with
-    # non-trivial targets. Call out big misses in either direction.
-    deltas: list[str] = []
+    # "Didn't make the preview" callouts. We deliberately don't expose
+    # target percentages here — the Discord audience has no way to know
+    # the server's configured biome weights, so numeric comparisons read
+    # as noise. The useful signal is "you won't find this biome on this
+    # world," which is real player-facing info. Only fire when the server
+    # was tuned to include a meaningful share (≥5%) of the biome in
+    # question, and the preview shows essentially none of it.
+    missing: list[str] = []
     for cfg_key, kind in CONFIG_TO_KIND.items():
         target = f.biome_weights.get(cfg_key, 0.0)
-        if target < 0.02:
+        if target < 0.05:
             continue
         realized = f.land_kind_fraction(kind)
-        delta = realized - target
-        if delta > 0.08:
-            deltas.append(
-                f"{BIOME_LABELS.get(kind, kind)} overshot its "
-                f"{round(target * 100)}% target (now {round(realized * 100)}%)"
-            )
-        elif delta < -0.08 and target >= 0.10:
-            deltas.append(
-                f"{BIOME_LABELS.get(kind, kind)} underperformed its "
-                f"{round(target * 100)}% target (only {round(realized * 100)}%)"
-            )
-        elif realized < 0.01 and target >= 0.03:
-            deltas.append(
-                f"{BIOME_LABELS.get(kind, kind)} is nearly invisible on the "
-                f"preview despite a {round(target * 100)}% target"
-            )
+        if realized < 0.01:
+            missing.append(BIOME_LABELS.get(kind, kind))
 
-    climate = ""
-    if deltas:
-        if len(deltas) == 1:
-            climate = f" Compared to the config weights, {deltas[0]}."
+    absence_line = ""
+    if missing:
+        if len(missing) == 1:
+            absence_line = f" No visible {missing[0]} made it onto the preview."
+        elif len(missing) == 2:
+            absence_line = (f" No visible {missing[0]} or {missing[1]} "
+                            "made it onto the preview.")
         else:
-            climate = (" Compared to the config weights, "
-                       + ", ".join(deltas[:-1])
-                       + f", and {deltas[-1]}.")
+            joined = ", ".join(missing[:-1]) + f", or {missing[-1]}"
+            absence_line = f" No visible {joined} made it onto the preview."
 
     cap = ""
     if f.ice_cap_north and f.ice_cap_south:
@@ -290,7 +283,7 @@ def _paragraph_biomes(f: Features) -> str:
     if mood_bits:
         mood = f" Climate reads {' and '.join(mood_bits)}."
 
-    return lead + mood + climate + cap
+    return lead + mood + absence_line + cap
 
 
 def _paragraph_geology(f: Features) -> str:
