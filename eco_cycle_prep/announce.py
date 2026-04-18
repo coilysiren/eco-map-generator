@@ -189,6 +189,27 @@ def _read_meteor_days() -> int:
 
 def _read_world_size() -> str:
     data = json.loads(WORLDGEN_CONFIG.read_text(encoding="utf-8"))
+
+    # An explicit Dimensions block overrides MapSizePreset — it's the actual
+    # world size the server will generate. The block is nested, so walk for it.
+    def _find_dims(obj):
+        if isinstance(obj, dict):
+            if "WorldLength" in obj and "WorldWidth" in obj:
+                return obj["WorldLength"], obj["WorldWidth"]
+            for v in obj.values():
+                r = _find_dims(v)
+                if r is not None:
+                    return r
+        elif isinstance(obj, list):
+            for v in obj:
+                r = _find_dims(v)
+                if r is not None:
+                    return r
+        return None
+
+    dims = _find_dims(data)
+    if dims:
+        return f"{dims[0]} x {dims[1]}"
     preset = data.get("MapSizePreset", "Small")
     # Eco presets (current as of 2026): Small 100x100, Medium 160x160, Large 240x240
     table = {"Small": "100 x 100", "Medium": "160 x 160", "Large": "240 x 240"}
