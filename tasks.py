@@ -63,30 +63,50 @@ def mods_sync(ctx, check=False):
         "cycle": "Cycle number",
         "start-ts": "Unix timestamp of go-live. Get it from "
         "https://r.3v.fi/discord-timestamps/",
-        "sync-network": "Also write matching DetailedDescription back into "
-        "eco-configs/Configs/Network.eco (default on).",
     }
 )
-def ad(ctx, cycle, start_ts, sync_network=True):
-    """Emit the server-ad markdown block for the main Eco Discord.
-    Prints to stdout (paste target) and saves a copy under rolls/_prep/.
-    Pulls server-id + invite from SSM, collab/meteor/size from eco-configs,
-    mod lists from eco-mods + eco-mods-public."""
+def ad(ctx, cycle, start_ts):
+    """Emit the eco-server-ad markdown block for the main Eco Discord /
+    Reddit. Under 100 lines, structured. Prints to stdout (paste target)
+    and saves a copy under rolls/_prep/."""
     from eco_cycle_prep import announce
 
     announce.run(cycle=int(cycle), start_ts=int(start_ts))
-    if sync_network:
-        announce.sync_network_description(cycle=int(cycle))
 
 
-@task(help={"cycle": "Cycle number"})
-def eco_configs_post(ctx, cycle):
-    """Emit the cycle kickoff post for Sirens' own #eco-configs channel.
-    Different format from `inv ad`: longer prose, mod.io links, no invite
-    or server-id headers. Prints to stdout and saves under rolls/_prep/."""
+@task(
+    help={
+        "cycle": "Cycle number",
+        "start-ts": "Unix timestamp of go-live. Get it from "
+        "https://r.3v.fi/discord-timestamps/",
+    }
+)
+def sirens_post(ctx, cycle, start_ts):
+    """Emit the verbose cycle-kickoff post for Sirens' own #eco-configs
+    channel. Budgeted to Discord's 2000-char message cap. Prints to stdout
+    and saves under rolls/_prep/."""
     from eco_cycle_prep import announce
 
-    announce.run_eco_configs(cycle=int(cycle))
+    announce.run_sirens_configs(cycle=int(cycle), start_ts=int(start_ts))
+
+
+@task(
+    help={
+        "cycle": "Cycle number",
+        "sync": "Also write the rendered values into eco-configs/Configs/"
+        "Network.eco (Name + DetailedDescription). Default off — render "
+        "first, review, then rerun with --sync.",
+    }
+)
+def ingame(ctx, cycle, sync=False):
+    """Render the in-game server Name (250-char cap) and DetailedDescription
+    (500-char cap) strings that show up in Eco's master-server browser.
+    Uses Unity rich-text color tags around 'Eco' and 'Sirens'."""
+    from eco_cycle_prep import announce
+
+    announce.run_ingame(cycle=int(cycle))
+    if sync:
+        announce.sync_ingame_to_network(cycle=int(cycle))
 
 
 @task(

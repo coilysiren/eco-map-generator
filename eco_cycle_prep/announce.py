@@ -222,6 +222,48 @@ def _read_exhaustion_note() -> str:
     return "Enabled" if enabled else "Disabled"
 
 
+SETTLEMENTS_CONFIG = worldgen.ECO_CONFIGS / "Configs" / "Settlements.eco"
+BALANCE_CONFIG = worldgen.ECO_CONFIGS / "Configs" / "Balance.eco"
+
+
+def _read_dinner_party_max() -> int:
+    data = json.loads(SETTLEMENTS_CONFIG.read_text(encoding="utf-8"))
+    return int(data["DinnerPartyConfig"].get("MaxDinnerPartiesPerDayCountedForBonus", 1))
+
+
+def _read_freshness_minutes() -> int:
+    data = json.loads(SETTLEMENTS_CONFIG.read_text(encoding="utf-8"))
+    return int(data["DinnerPartyConfig"].get("FreshnessTimeMinutesPreparedFood", 60))
+
+
+def _read_claim_papers() -> float:
+    data = json.loads(DIFFICULTY_CONFIG.read_text(encoding="utf-8"))
+    return float(
+        data["GameSettings"].get("AdvancedGameSettings", {}).get(
+            "ClaimPapersGrantedUponSkillscrollConsumed", 0
+        )
+    )
+
+
+def _read_claim_stakes() -> float:
+    data = json.loads(DIFFICULTY_CONFIG.read_text(encoding="utf-8"))
+    return float(
+        data["GameSettings"].get("AdvancedGameSettings", {}).get(
+            "ClaimStakesGrantedUponSkillscrollConsumed", 0
+        )
+    )
+
+
+def _read_tool_repair_penalty() -> float:
+    data = json.loads(BALANCE_CONFIG.read_text(encoding="utf-8"))
+    return float(data.get("ToolRepairPenalty", 0.2))
+
+
+def _read_max_height() -> int:
+    data = json.loads(WORLDGEN_CONFIG.read_text(encoding="utf-8"))
+    return int(data.get("MaxGenerationHeight", 120))
+
+
 def _ad_config_bullets(cycle: int) -> list[str]:
     """Per-cycle ad-configs override at rolls/_prep/ad-configs-cycle-<N>.txt.
     Lines starting with `#` are comments; blank lines are skipped."""
@@ -258,7 +300,7 @@ def render_server_ad(cycle: int, start_ts: int) -> str:
     custom_lines = "\n".join(f"- {m}" for m in list_custom_mods())
     code_lines = "\n".join(f"- {c.format(invite=invite)}" for c in identity["code_mods"])
 
-    return _load_template("server-ad.md.tmpl").substitute(
+    return _load_template("eco-server-ad.md.tmpl").substitute(
         summary=identity["summary"],
         objective=identity["objective"],
         server_id=server_id,
@@ -278,21 +320,83 @@ def render_server_ad(cycle: int, start_ts: int) -> str:
     )
 
 
-def render_eco_configs_channel(cycle: int) -> str:
+def render_sirens_configs_channel(cycle: int, start_ts: int) -> str:
+    """Verbose Discord-style announcement for Sirens' own #eco-configs channel.
+    Budgeted to Discord's 2000-char message limit (caller should check)."""
+    identity = load_identity()
+    invite = ssm.get("/discord/server-ad-invite")
     collab_long = COLLAB_LONG.get(_read_collab_raw(), _read_collab_raw())
-    config_lines = "\n".join(f"- {b}" for b in _ad_config_bullets(cycle))
-    public_lines = "\n".join(list_public_mods_with_links())
-    private_lines = "\n".join(f"- {m}" for m in list_custom_mods())
 
-    return _load_template("eco-configs-channel.md.tmpl").substitute(
+    config_lines = "\n".join(f"- {b}" for b in _ad_config_bullets(cycle))
+    content_lines = "\n".join(f"- {m}" for m in list_content_mods())
+    custom_lines = "\n".join(f"- {m}" for m in list_custom_mods())
+    code_lines = "\n".join(f"- {c.format(invite=invite)}" for c in identity["code_mods"])
+
+    return _load_template("sirens-configs-channel.md.tmpl").substitute(
         cycle=cycle,
+        start_ts=start_ts,
+        difficulty_long=collab_long,
+        meteor_days=_read_meteor_days(),
+        world_size=_read_world_size(),
+        invite=invite,
+        config_bullets=config_lines,
+        content_mods=content_lines,
+        custom_mods=custom_lines,
+        code_mods=code_lines,
+        max_dinner_parties=_read_dinner_party_max(),
+        freshness_minutes=_read_freshness_minutes(),
+        claim_papers=_fmt_num(_read_claim_papers()),
+        claim_stakes=_fmt_num(_read_claim_stakes()),
+        tool_repair_penalty=_fmt_num(_read_tool_repair_penalty()),
+        max_height=_read_max_height(),
+    )
+
+
+def _fmt_num(x: float) -> str:
+    # 2.0 -> "2", 0.1 -> "0.1"
+    return str(int(x)) if float(x).is_integer() else str(x)
+
+
+def render_ingame_name(cycle: int) -> str:
+    collab_short = COLLAB_SHORT.get(_read_collab_raw(), _read_collab_raw())
+    return _load_template("ingame-name.md.tmpl").substitute(
+        cycle=cycle,
+        difficulty_short=collab_short,
+        world_size=_read_world_size(),
+    ).rstrip("\n")
+
+
+def render_ingame_description(cycle: int) -> str:
+    """500-char budget (hard cap in Eco's master-server registration).
+    Tagline strings below are sized to fit within that cap."""
+    invite = ssm.get("/discord/server-ad-invite")
+    collab_long = COLLAB_LONG.get(_read_collab_raw(), _read_collab_raw())
+
+    content = list_content_mods()
+    custom = list_custom_mods()
+    total_mods = len(content) + len(custom)
+    mod_highlights = ", ".join(
+        [m for m in ["Biochemist", "Easy Logging", "Dinner Parties"] if True]
+        + custom[:3]
+    )
+    mods_tagline = f"{total_mods}+ mods including {mod_highlights}"
+
+    # Pick 5-6 highest-signal configs
+    config_tagline = (
+        f"2x plant growth / fuel / connection, 50% item weight, "
+        f"{_read_dinner_party_max()}/day dinner parties, softer tool wear, "
+        "paid items allowed, no exhaustion"
+    )
+
+    return _load_template("ingame-description.md.tmpl").substitute(
+        cycle=cycle,
+        meteor_days=_read_meteor_days(),
         difficulty_long=collab_long,
         world_size=_read_world_size(),
-        exhaustion_note=_read_exhaustion_note(),
-        config_bullets=config_lines,
-        public_mods=public_lines,
-        private_mods=private_lines,
-    )
+        config_tagline=config_tagline,
+        mods_tagline=mods_tagline,
+        invite=invite,
+    ).rstrip("\n")
 
 
 # ---------------------------------------------------------------------------
@@ -312,16 +416,36 @@ def run(cycle: int, start_ts: int, save: bool = True) -> str:
     return md
 
 
-def run_eco_configs(cycle: int, save: bool = True) -> str:
-    md = render_eco_configs_channel(cycle=cycle)
+def run_sirens_configs(cycle: int, start_ts: int, save: bool = True) -> str:
+    md = render_sirens_configs_channel(cycle=cycle, start_ts=start_ts)
     if save:
         PREP_DIR.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        out = PREP_DIR / f"eco-configs-channel-cycle-{cycle}-{stamp}.md"
+        out = PREP_DIR / f"sirens-configs-channel-cycle-{cycle}-{stamp}.md"
         out.write_text(md, encoding="utf-8")
-        print(f"# saved to {out}\n", flush=True)
+        print(f"# saved to {out}  ({len(md)} chars, discord limit 2000)\n", flush=True)
     print(md, end="", flush=True)
     return md
+
+
+def run_ingame(cycle: int, save: bool = True) -> dict[str, str]:
+    """Render the in-game Name + DetailedDescription strings. Does NOT write
+    to Network.eco — call `sync_ingame_to_network(cycle)` explicitly once
+    you're happy with the output."""
+    name = render_ingame_name(cycle=cycle)
+    desc = render_ingame_description(cycle=cycle)
+    if save:
+        PREP_DIR.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        (PREP_DIR / f"ingame-name-cycle-{cycle}-{stamp}.txt").write_text(
+            name + "\n", encoding="utf-8"
+        )
+        (PREP_DIR / f"ingame-description-cycle-{cycle}-{stamp}.txt").write_text(
+            desc + "\n", encoding="utf-8"
+        )
+    print(f"\n=== ingame-name ({len(name)} chars, eco limit 250) ===\n{name}\n")
+    print(f"=== ingame-description ({len(desc)} chars, eco limit 500) ===\n{desc}\n")
+    return {"name": name, "description": desc}
 
 
 # ---------------------------------------------------------------------------
@@ -330,34 +454,41 @@ def run_eco_configs(cycle: int, save: bool = True) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _detailed_description(cycle: int) -> str:
-    # Plain-ASCII on purpose; Eco's in-game description panel does its own
-    # markup, and Kai's style rules avoid em-dashes in generated prose.
-    configs = _ad_config_bullets(cycle)
-    content = list_content_mods() + list_custom_mods()
-    parts = [
-        f"Cycle {cycle} - all time zones welcome!",
-        "",
-        "Configs: " + "; ".join(configs) + ".",
-        "",
-        "Mods: " + ", ".join(content) + ".",
-    ]
-    return "\n".join(parts)
+NAME_CAP = 250
+DESCRIPTION_CAP = 500
 
 
-def sync_network_description(cycle: int) -> None:
+def sync_ingame_to_network(cycle: int) -> None:
+    """Write render_ingame_name() and render_ingame_description() into the
+    git-tracked Network.eco's Name + DetailedDescription fields. Enforces
+    the Eco master-server caps (250 / 500) and raises if exceeded."""
+    name = render_ingame_name(cycle=cycle)
+    desc = render_ingame_description(cycle=cycle)
+    if len(name) > NAME_CAP:
+        raise ValueError(f"ingame-name is {len(name)} chars, exceeds cap {NAME_CAP}")
+    if len(desc) > DESCRIPTION_CAP:
+        raise ValueError(
+            f"ingame-description is {len(desc)} chars, exceeds cap {DESCRIPTION_CAP}"
+        )
+
     data = json.loads(NETWORK_CONFIG.read_text(encoding="utf-8"))
-    old = data.get("DetailedDescription", "")
-    new = _detailed_description(cycle)
-    if old == new:
-        print("Network.eco DetailedDescription unchanged")
+    old_name = data.get("Name", "")
+    old_desc = data.get("DetailedDescription", "")
+    changed = []
+    if old_name != name:
+        data["Name"] = name
+        changed.append(f"Name ({len(old_name)} -> {len(name)} chars)")
+    if old_desc != desc:
+        data["DetailedDescription"] = desc
+        changed.append(f"DetailedDescription ({len(old_desc)} -> {len(desc)} chars)")
+    if not changed:
+        print("Network.eco Name + DetailedDescription unchanged")
         return
-    data["DetailedDescription"] = new
     NETWORK_CONFIG.write_text(
         json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    print("updated Network.eco: " + ", ".join(changed))
     print(
-        f"updated Network.eco DetailedDescription ({len(old)} -> {len(new)} chars).\n"
         "commit + push eco-configs, then `inv eco.copy-configs --with-world-gen` "
         "on kai-server."
     )
