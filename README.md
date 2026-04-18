@@ -1,9 +1,34 @@
 # eco-cycle-prep
 
-End-to-end tooling for preparing a fresh cycle on Kai's Eco (Strange Loop
-Games) server. Map generation is one phase; the rest covers source sync,
-community-intel aggregation from Discord, config tuning, mod management,
-and the go-live announcements.
+End-to-end tooling for preparing a fresh cycle on my [Eco](https://play.eco/)
+(Strange Loop Games) server, "Eco via Sirens". Map generation is one phase;
+the rest covers source sync, community-intel aggregation from Discord,
+config tuning, mod management, and the go-live announcements. Written as a
+set of [Invoke](https://pyinvoke.org/) tasks in Python, with Jinja2
+templates for the two recurring announcement formats (the cross-server ad
+on the main Eco Discord, and the longer post on the Sirens `#eco-configs`
+channel).
+
+The cycle workflow pulls the latest from sibling repos, regenerates a
+Discord digest of recent community input, rolls candidate worldgen seeds
+against [eco-configs](https://github.com/coilysiren/eco-configs)'
+`WorldGenerator.eco`, syncs
+[eco-mods](https://github.com/coilysiren/eco-mods) plus
+[eco-mods-public](https://github.com/coilysiren/eco-mods-public) onto the
+game server, waits for the preview render, and posts announcements.
+Discord-side plumbing runs through
+[eco-agent](https://github.com/coilysiren/eco-agent); channel IDs and
+tokens are resolved from AWS SSM at runtime.
+
+This repo is part of a small family of public tooling around
+[Eco](https://play.eco/), a multiplayer survival and simulation game by
+[Strange Loop Games](https://strangeloopgames.com/). The official modkit
+lives at
+[StrangeLoopGames/EcoModKit](https://github.com/StrangeLoopGames/EcoModKit),
+modding docs are at [docs.play.eco](https://docs.play.eco/) and
+[wiki.play.eco/en/Modding](https://wiki.play.eco/en/Modding), and
+[Eco-DiscordLink/EcoDiscordPlugin](https://github.com/Eco-DiscordLink/EcoDiscordPlugin)
+is the canonical in-game to Discord chat relay.
 
 ## About Eco
 
