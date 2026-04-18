@@ -1,7 +1,6 @@
 """The per-roll pipeline: seed → push → remote reset → wait for preview → post."""
 
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -116,13 +115,6 @@ def _one_roll(ctx: Context, cycle: int, seed: int) -> Path:
     return out_dir
 
 
-def run(ctx: Context, *, cycle: int, count: int = 1, seed: int | None = None) -> None:
-    if seed is not None and count > 1:
-        raise ValueError("--seed and --count > 1 are mutually exclusive")
-
-    for i in range(count):
-        s = seed if seed is not None else worldgen.random_seed()
-        _one_roll(ctx, cycle, s)
-        if i < count - 1:
-            # brief spacing so we don't race Discord rate limits
-            time.sleep(2)
+def run(ctx: Context, *, cycle: int, seed: int | None = None) -> None:
+    s = seed if seed is not None else worldgen.random_seed()
+    _one_roll(ctx, cycle, s)

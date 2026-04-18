@@ -39,6 +39,28 @@ def ssh(
     )
 
 
+def run_python(
+    ctx: Context,
+    script: str,
+    *,
+    echo: bool = True,
+) -> subprocess.CompletedProcess:
+    """Pipe a Python script into `python3 -` on kai-server via ssh stdin.
+    Avoids the quoting pain of embedding a multi-line script in an ssh
+    command line."""
+    if echo:
+        first = next((ln for ln in script.strip().splitlines() if ln.strip()), "")
+        print(f"$ ssh {HOST} python3 -  # {first}")
+    return subprocess.run(
+        ["ssh", HOST, "python3", "-"],
+        input=script,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=True,
+    )
+
+
 def steamcmd_update(ctx: Context):
     """Run the Eco server pre-start script (steamcmd install/update)."""
     ssh(ctx, "bash /home/kai/projects/infrastructure/scripts/eco-server-pre.sh")

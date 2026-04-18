@@ -107,16 +107,37 @@ def mods_disable(ctx, names):
 @task(
     help={
         "cycle": "Current Eco cycle number",
-        "count": "How many rolls to generate (default 1)",
-        "seed": "Specific seed to use. If set, overrides random and forces count=1.",
+        "seed": "Specific seed to use. If omitted, a fresh random seed is picked.",
     }
 )
-def roll(ctx, cycle, count=1, seed=None):
+def roll(ctx, cycle, seed=None):
+    """Roll one worldgen seed end-to-end: set + push to eco-configs, sync
+    to kai-server, wipe storage, restart, wait for preview, post preview
+    GIF and seed to the current cycle's Discord channel."""
     from eco_cycle_prep import roll as roll_module
 
     roll_module.run(
         ctx,
         cycle=int(cycle),
-        count=int(count),
         seed=int(seed) if seed is not None else None,
     )
+
+
+@task(help={"restart": "Restart the server after the flip (default on)"})
+def go_live(ctx, restart=True):
+    """Flip the running Eco server to public + no-password on kai-server.
+
+    Edits `Configs/Network.eco` ON THE SERVER directly. The git-tracked
+    Network.eco always stays in its private, password-protected state.
+
+    Order: runs `eco.copy-configs --with-world-gen` on kai-server so it
+    has the final cycle settings, then flips Network.eco on disk, then
+    optionally restarts the server.
+
+    Do NOT run `inv roll` or `inv mods-sync` after this — both invoke
+    `eco.copy-configs` under the hood, which would overwrite Network.eco
+    with the git (private) version and take the server back off-public.
+    """
+    from eco_cycle_prep import golive
+
+    golive.run(ctx, restart=restart)
