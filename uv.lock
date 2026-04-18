@@ -53,7 +53,7 @@ wheels = [
 ]
 
 [[package]]
-name = "eco-map-generator"
+name = "eco-cycle-prep"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

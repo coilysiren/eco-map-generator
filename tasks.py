@@ -17,14 +17,14 @@ from invoke import task  # noqa: E402
 
 @task(help={"cycle": "Current Eco cycle number (e.g. 13)"})
 def prep(ctx, cycle):
-    from eco_map_generator import prep as prep_module
+    from eco_cycle_prep import prep as prep_module
 
     prep_module.run(ctx, cycle=int(cycle))
 
 
 @task(help={"days": "How many days of suggestions-forum history to dump (default 60)"})
 def forum_dump(ctx, days=60):
-    from eco_map_generator import prep as prep_module
+    from eco_cycle_prep import prep as prep_module
 
     prep_module.run_forum_dump(ctx, since_days=int(days))
 
@@ -36,7 +36,7 @@ def forum_dump(ctx, days=60):
     }
 )
 def brief(ctx, cycle, days=60):
-    from eco_map_generator import prep as prep_module
+    from eco_cycle_prep import prep as prep_module
 
     prep_module.run_brief(ctx, cycle=int(cycle), days=int(days))
 
@@ -45,7 +45,7 @@ def brief(ctx, cycle, days=60):
 def mods_sync(ctx, check=False):
     """Clone eco-mods + eco-mods-public on kai-server and copy to the Eco install.
     Lockdown-gated (Network.eco must be PublicServer=false, Password=password)."""
-    from eco_map_generator import mods, safety
+    from eco_cycle_prep import mods, safety
 
     safety.assert_network_locked_down()
     if check:
@@ -68,7 +68,7 @@ def ad(ctx, cycle, start_ts, sync_network=True):
     Prints to stdout (paste target) and saves a copy under rolls/_prep/.
     Pulls server-id + invite from SSM, collab/meteor/size from eco-configs,
     mod lists from eco-mods + eco-mods-public."""
-    from eco_map_generator import announce
+    from eco_cycle_prep import announce
 
     announce.run(cycle=int(cycle), start_ts=int(start_ts))
     if sync_network:
@@ -80,7 +80,7 @@ def eco_configs_post(ctx, cycle):
     """Emit the cycle kickoff post for Sirens' own #eco-configs channel.
     Different format from `inv ad`: longer prose, mod.io links, no invite
     or server-id headers. Prints to stdout and saves under rolls/_prep/."""
-    from eco_map_generator import announce
+    from eco_cycle_prep import announce
 
     announce.run_eco_configs(cycle=int(cycle))
 
@@ -96,7 +96,7 @@ def mods_disable(ctx, names):
     """rm -rf the listed mod folders from kai-server's EcoServer Mods/UserCode/.
     Note: the next `inv mods-sync` will re-deposit anything still in the
     eco-mods or eco-mods-public source repos."""
-    from eco_map_generator import mods
+    from eco_cycle_prep import mods
 
     arr = [n.strip() for n in names.split(",") if n.strip()]
     if not arr:
@@ -112,7 +112,7 @@ def mods_disable(ctx, names):
     }
 )
 def roll(ctx, cycle, count=1, seed=None):
-    from eco_map_generator import roll as roll_module
+    from eco_cycle_prep import roll as roll_module
 
     roll_module.run(
         ctx,
