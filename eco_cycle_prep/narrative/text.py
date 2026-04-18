@@ -7,6 +7,7 @@ Tune wording here; feature extraction stays in features.py.
 
 import math
 
+from .biomes import BIOME_HIGHLIGHTS, BiomeHighlight
 from .blocks import BIOME_SOIL_KINDS
 from .features import Features
 
@@ -289,40 +290,56 @@ def _paragraph_biomes(f: Features) -> str:
     return lead + mood + absence_line + cap
 
 
-def _paragraph_geology(f: Features) -> str:
-    """Third paragraph: surface stone, ore, notable geological features."""
+def _biome_sentence(kind: str, h: BiomeHighlight, dominant: bool) -> str:
+    """One sentence of player-facing flavor for a named biome.
+
+    Dominant biome: the full trees / fauna / minerals readout alongside
+    the industry hook. Secondary biome: just the hook, which already
+    summarizes the biome's gameplay role in a phrase."""
+    label = BIOME_LABELS.get(kind, kind)
+    if dominant:
+        return (
+            f"The {label} here offers {h.character} — {h.trees}, "
+            f"{h.fauna}, and {h.minerals}."
+        )
+    return f"The {label} adds {h.character}."
+
+
+def _paragraph_biome_contents(f: Features) -> str:
+    """Third paragraph: what the top biomes on this map actually
+    contain — the specific trees, fauna, and mineral stacks a player
+    would find inside them. Draws on biomes.BIOME_HIGHLIGHTS."""
+    top = _top_biomes(f, n=5)
+    if not top:
+        return ""
+
+    sentences: list[str] = []
+
+    # Dominant biome: full flavor.
+    first_kind, _ = top[0]
+    first_h = BIOME_HIGHLIGHTS.get(first_kind)
+    if first_h is not None:
+        sentences.append(_biome_sentence(first_kind, first_h, dominant=True))
+
+    # Second biome: shorter flavor, and only if it's genuinely a
+    # different biome (skip if duplicate / missing highlights).
+    if len(top) >= 2:
+        second_kind, _ = top[1]
+        second_h = BIOME_HIGHLIGHTS.get(second_kind)
+        if second_h is not None and second_h is not first_h:
+            sentences.append(_biome_sentence(second_kind, second_h, dominant=False))
+
+    return " ".join(sentences)
+
+
+def _paragraph_surface_notes(f: Features) -> str:
+    """Fourth (and shortest) paragraph: global, biome-agnostic surface
+    observations — ore seams poking through, seafloor visible in the
+    shallows, tundra dirt, visible craters. The old "Visible stone is
+    mixed: granite N%..." content lived here; it's now covered by the
+    biome-contents paragraph, which names each biome's mineral stack
+    directly."""
     bits: list[str] = []
-
-    granite = f.land_kind_fraction("granite")
-    sandstone = f.land_kind_fraction("sandstone")
-    limestone = f.land_kind_fraction("limestone")
-    basalt_frac = f.kind_pixels.get("basalt", 0) / f.total_pixels if f.total_pixels else 0
-    ocean_floor = f.kind_pixels.get("ocean_floor", 0) / f.total_pixels if f.total_pixels else 0
-    dirt_frac = f.land_kind_fraction("dirt")
-
-    stone_bits: list[str] = []
-    if granite > 0.04:
-        stone_bits.append(f"granite ({round(granite * 100)}%) cutting through the forested zones")
-    elif granite > 0.01:
-        stone_bits.append(f"granite outcrops ({round(granite * 100)}%)")
-    if limestone > 0.02:
-        stone_bits.append(f"limestone ({round(limestone * 100)}%) exposed across grassland and coast")
-    elif limestone > 0.005:
-        stone_bits.append(f"limestone ({round(limestone * 100)}%)")
-    if sandstone > 0.02:
-        stone_bits.append(f"sandstone ({round(sandstone * 100)}%) rising out of the desert")
-    elif sandstone > 0.005:
-        stone_bits.append(f"sandstone ({round(sandstone * 100)}%)")
-
-    if stone_bits:
-        if len(stone_bits) == 1:
-            bits.append("Visible stone is mostly " + stone_bits[0])
-        else:
-            bits.append("Visible stone is mixed: "
-                       + ", ".join(stone_bits[:-1])
-                       + f", and {stone_bits[-1]}")
-    else:
-        bits.append("Stone exposure is light; most rock sits under soil rather than breaking through")
 
     # Ore seams on the surface — a real player-facing tell.
     ore_px = f.kind_pixels.get("ore", 0)
@@ -349,11 +366,14 @@ def _paragraph_geology(f: Features) -> str:
             bits.append("A few unidentified ore patches break through to the surface")
 
     # Ocean-floor glimpses (shallow water or coastal basalt).
+    basalt_frac = f.kind_pixels.get("basalt", 0) / f.total_pixels if f.total_pixels else 0
+    ocean_floor = f.kind_pixels.get("ocean_floor", 0) / f.total_pixels if f.total_pixels else 0
     if basalt_frac > 0.01 or ocean_floor > 0.005:
         bits.append("shallow coastal water shows seafloor through it in places")
 
-    # Tundra/dirt exposure implies frost damage; callers can read that as
-    # 'tough starting biome'.
+    # Tundra/dirt exposure implies frost damage; the player should
+    # read it as "tough starting biome."
+    dirt_frac = f.land_kind_fraction("dirt")
     if dirt_frac > 0.05:
         bits.append(
             f"bare earth occupies {round(dirt_frac * 100)}% of the land, usually a sign of tundra and high-elevation peaks"
@@ -361,7 +381,7 @@ def _paragraph_geology(f: Features) -> str:
 
     # Crater-bearing worlds (disabled by default on Sirens).
     if f.crater_enabled:
-        bits.append("and impact craters scar the terrain, visible as dark circular pits")
+        bits.append("impact craters scar the terrain, visible as dark circular pits")
 
     if not bits:
         return ""
@@ -375,7 +395,10 @@ def narrate(features: Features) -> str:
         _paragraph_shape(features),
         _paragraph_biomes(features),
     ]
-    geo = _paragraph_geology(features)
-    if geo:
-        paras.append(geo)
+    contents = _paragraph_biome_contents(features)
+    if contents:
+        paras.append(contents)
+    surface = _paragraph_surface_notes(features)
+    if surface:
+        paras.append(surface)
     return "\n\n".join(paras)
