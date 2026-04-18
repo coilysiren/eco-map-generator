@@ -56,6 +56,27 @@ def mods_sync(ctx, check=False):
 
 @task(
     help={
+        "cycle": "Cycle number",
+        "start-ts": "Unix timestamp of go-live. Get it from "
+        "https://r.3v.fi/discord-timestamps/",
+        "sync-network": "Also write matching DetailedDescription back into "
+        "eco-configs/Configs/Network.eco (default on).",
+    }
+)
+def ad(ctx, cycle, start_ts, sync_network=True):
+    """Emit the server-ad markdown block for the main Eco Discord.
+    Prints to stdout (paste target) and saves a copy under rolls/_prep/.
+    Pulls server-id + invite from SSM, collab/meteor/size from eco-configs,
+    mod lists from eco-mods + eco-mods-public."""
+    from eco_map_generator import announce
+
+    announce.run(cycle=int(cycle), start_ts=int(start_ts))
+    if sync_network:
+        announce.sync_network_description(cycle=int(cycle))
+
+
+@task(
+    help={
         "names": "Comma-separated mod folder names to remove (UserCode/<name>). "
         "Defaults to every DF* mod — Deepflame asked for a disable in cycle 13."
     }
