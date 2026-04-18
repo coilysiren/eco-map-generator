@@ -3,10 +3,12 @@
 Weekly prep:         inv prep --cycle <N>
 Discord intel:       inv brief --cycle <N> [--days <D>]  |  inv forum-dump [--days <D>]
 Map rolls (repeat):  inv roll --cycle <N> [--seed <S>]   # one seed per invocation
+Re-post a roll:      inv post-roll --cycle <N> [--roll <R>]  # replay discord post only
 Narrate a map:       inv narrate [--gif PATH] [--config PATH] [--features]
 Mod management:      inv mods-sync  |  inv mods-disable --names=A,B,C
 Announcements:       inv ad --cycle <N> --start-ts <unix>  |  inv eco-configs-post --cycle <N>
 Go live:             inv go-live   # runtime flip on kai-server; git Network.eco stays private
+Go private:          inv go-private  # inverse: re-privatize the server mid-cycle
 """
 
 import sys
@@ -150,6 +152,28 @@ def roll(ctx, cycle, seed=None):
 
 @task(
     help={
+        "cycle": "Cycle number the roll lives under",
+        "roll": "Specific roll number to re-post. Defaults to the highest "
+        "roll number in the cycle dir.",
+    }
+)
+def post_roll(ctx, cycle, roll=None):
+    """Replay just the Discord post for an already-captured roll preview.
+
+    Useful when `inv roll` generated the world + saved WorldPreview.gif but
+    the Discord/SSM hop failed (stale SSO token, 5xx, etc.). Does not
+    re-roll the world — only posts the existing gif and writes metadata.json.
+    """
+    from eco_cycle_prep import roll as roll_module
+
+    roll_module.post_existing(
+        cycle=int(cycle),
+        roll=int(roll) if roll is not None else None,
+    )
+
+
+@task(
+    help={
         "gif": "Path to a local WorldPreview.gif. Default: fetch the live "
         "server at eco.coilysiren.me:3001.",
         "config": "Path to a WorldGenerator.eco config. Default: the "
@@ -195,3 +219,19 @@ def go_live(ctx, restart=True):
     from eco_cycle_prep import golive
 
     golive.run(ctx, restart=restart)
+
+
+@task(help={"restart": "Restart the server after the flip (default on)"})
+def go_private(ctx, restart=True):
+    """Flip the running Eco server back to private + password-locked on kai-server.
+
+    Inverse of `inv go-live`. Syncs git's (locked) Network.eco onto the
+    server, re-asserts PublicServer=false + the locked password on disk,
+    then restarts so the flip takes effect.
+
+    Requires git's eco-configs/Configs/Network.eco to already be in the
+    locked private state — fails loudly otherwise.
+    """
+    from eco_cycle_prep import goprivate
+
+    goprivate.run(ctx, restart=restart)

@@ -5,7 +5,7 @@ import random
 import shutil
 from pathlib import Path
 
-ECO_CONFIGS = Path.home() / "projects" / "eco-configs"
+ECO_CONFIGS = Path(__file__).resolve().parent.parent.parent / "eco-configs"
 WORLDGEN_PATH = ECO_CONFIGS / "Configs" / "WorldGenerator.eco"
 SEED_MAX = 2_000_000_000  # Eco Seed is an int; keep well under int32 max
 
