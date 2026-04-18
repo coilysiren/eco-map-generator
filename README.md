@@ -4,10 +4,10 @@ End-to-end tooling for preparing a fresh cycle on my [Eco](https://play.eco/)
 (Strange Loop Games) server, "Eco via Sirens". Map generation is one phase;
 the rest covers source sync, community-intel aggregation from Discord,
 config tuning, mod management, and the go-live announcements. Written as a
-set of [Invoke](https://pyinvoke.org/) tasks in Python, with Jinja2
-templates for the two recurring announcement formats (the cross-server ad
-on the main Eco Discord, and the longer post on the Sirens `#eco-configs`
-channel).
+set of [Invoke](https://pyinvoke.org/) tasks in Python, with
+`string.Template` markdown stubs for the two recurring announcement formats
+(the cross-server ad on the main Eco Discord, and the longer post on the
+Sirens `#eco-configs` channel).
 
 The cycle workflow pulls the latest from sibling repos, regenerates a
 Discord digest of recent community input, rolls candidate worldgen seeds
@@ -45,17 +45,24 @@ to the biosphere. Kai's server, "Eco via Sirens", runs ~2-month cycles.
 - `inv brief --cycle N --days D` — cycle-13-style brief: full cycle-N
   channel history + last D days of suggestions + suggestions-forum.
 - `inv forum-dump --days D` — standalone dump of the suggestions forum.
-- `inv roll --cycle N [--count N] [--seed S]` — roll a worldgen seed,
-  sync configs to kai-server, wipe storage, wait for preview, post to
-  the current cycle channel.
+- `inv roll --cycle N [--seed S]` — roll a single worldgen seed end-to-end:
+  set + push to eco-configs, sync configs + reset storage on kai-server,
+  wait for the preview to stabilize (streams `journalctl -u eco-server`
+  while it boots), post the preview GIF to the current cycle channel.
+  One roll per invocation; invoke again to roll the next seed.
 - `inv mods-sync` — clone eco-mods + eco-mods-public on kai-server and
-  copy them into the Eco install.
+  copy them into the Eco install. Lockdown-gated (Network.eco in git
+  must carry the private/password-protected values).
 - `inv mods-disable --names=A,B,C` — rm mod folders from the server
   (ephemeral; prefer deleting from the eco-mods source repo).
 - `inv ad --cycle N --start-ts UNIX_TS` — emit the main Eco Discord ad
   and sync Network.eco's DetailedDescription.
 - `inv eco-configs-post --cycle N` — emit the Sirens #eco-configs
   channel post (longer, mod.io links).
+- `inv go-live` — cycle launch: `copy-configs` to kai-server, then edit
+  `Network.eco` ON THE SERVER to set PublicServer=true + Password="",
+  then restart. The git-tracked Network.eco always stays in its locked
+  private state; going public is a runtime-only flip.
 
 Templates for the two announcement formats live under
 `eco_cycle_prep/templates/`. Server-specific branding (summary,

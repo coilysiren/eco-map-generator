@@ -1,7 +1,11 @@
-"""Entry points for the Eco map evaluation workflow.
+"""Entry points for the Eco cycle-prep workflow.
 
-Phase 1 (weekly):   inv prep --cycle 13
-Phase 2 (repeated): inv roll --cycle 13 [--count N] [--seed N]
+Weekly prep:         inv prep --cycle <N>
+Discord intel:       inv brief --cycle <N> [--days <D>]  |  inv forum-dump [--days <D>]
+Map rolls (repeat):  inv roll --cycle <N> [--seed <S>]   # one seed per invocation
+Mod management:      inv mods-sync  |  inv mods-disable --names=A,B,C
+Announcements:       inv ad --cycle <N> --start-ts <unix>  |  inv eco-configs-post --cycle <N>
+Go live:             inv go-live   # runtime flip on kai-server; git Network.eco stays private
 """
 
 import sys
