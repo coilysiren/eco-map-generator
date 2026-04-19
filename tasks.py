@@ -201,6 +201,43 @@ def narrate(ctx, gif=None, config=None, features=False):
     )
 
 
+@task(
+    help={
+        "channel": "Channel alias: general-public (patch notes) or eco-status (status feed).",
+        "body": "Message body inline. Mutually exclusive with --from-file.",
+        "from-file": "Read message body from this file path.",
+    }
+)
+def discord_post(ctx, channel, body=None, from_file=None):
+    """Post a one-off content message to a named Sirens Discord channel.
+
+    Posts via the sirens-echo bot. Use this for patch notes and other
+    manual announcements. Before drafting a patch-note body, consult
+    the private `../eco-voice/` repo for voice and tone guidance.
+    """
+    from eco_cycle_prep import discord_post as dp
+
+    if bool(body) == bool(from_file):
+        raise ValueError("pass exactly one of --body=... or --from-file=...")
+    content = body if body else open(from_file, encoding="utf-8").read()
+    r = dp.post_content(channel, content)
+    print(f"posted id={r['id']} channel_id={r['channel_id']} len={len(r.get('content', ''))}")
+
+
+@task(help={"reason": "Optional one-liner shown as the embed description."})
+def restart_notice(ctx, reason=None):
+    """Post the pre-restart heads-up embed to #eco-status.
+
+    Run this immediately before any command that restarts the Eco server
+    on kai-server. Mirrors DiscordLink's Server Started / Server Stopped
+    embed format so it slots in visually with the auto-posted feed.
+    """
+    from eco_cycle_prep import discord_post as dp
+
+    r = dp.restart_notice(reason=reason)
+    print(f"posted id={r['id']} channel_id={r['channel_id']}")
+
+
 @task(help={"restart": "Restart the server after the flip (default on)"})
 def go_live(ctx, restart=True):
     """Flip the running Eco server to public + no-password on kai-server.
