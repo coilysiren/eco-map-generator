@@ -4,6 +4,12 @@ See `../AGENTS.md` for workspace-level conventions (git workflow, test/lint auto
 
 ---
 
+## Local Eco server config mutations are expected
+
+`server_local.prep_for_local` (invoked by `coily server-run`) intentionally rewrites `Configs/Network.eco`, `Configs/DiscordLink.eco`, `Configs/Difficulty.eco`, and creates `Configs/Sleep.eco` in the Steam-installed Eco server dir. That's the whole point of the task - it's putting the local server into private-local-dev shape. Do not flag these mutations as surprising or as cleanup candidates after running that verb. Resync from `eco-configs` only when Kai explicitly asks.
+
+---
+
 ## Sibling Eco repos
 
 This project depends heavily on the user's other Eco (Strange Loop Games) repos, which live as siblings under the same parent directory (`C:\projects\` on Windows, `/Users/kai/projects/coilysiren` on Mac). Read from them directly rather than asking the user for Eco domain details.
