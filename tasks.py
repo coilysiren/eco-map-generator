@@ -292,3 +292,81 @@ def go_private(ctx, restart=True):
     from eco_cycle_prep import goprivate
 
     goprivate.run(ctx, restart=restart)
+
+
+# --- local Eco server (Windows / Mac) -----------------------------------------
+# Copied from coilysiren/infrastructure/src/eco.py during the migration to
+# make eco-cycle-prep the single source of truth for Eco ops. See issue for
+# the kai-server / remote side of the move.
+
+
+@task(help={"offline": "Launch without fetching /eco/server-api-token from SSM"})
+def server_run(ctx, offline=False):  # noqa: ARG001
+    """Prep Configs for private-local dev and launch the local EcoServer."""
+    from eco_cycle_prep import server_local
+
+    server_local.prep_for_local(offline=offline)
+    server_local.launch(offline=offline)
+
+
+@task(help={"offline": "Launch without fetching /eco/server-api-token from SSM"})
+def server_launch(ctx, offline=False):  # noqa: ARG001
+    """Launch the local EcoServer as-is, without rewriting any configs."""
+    from eco_cycle_prep import server_local
+
+    server_local.launch(offline=offline)
+
+
+@task
+def server_copy_configs(ctx):  # noqa: ARG001
+    """Copy Configs/ from the sibling eco-configs repo into the local server."""
+    from eco_cycle_prep import server_local
+
+    server_local.copy_configs_from_sibling()
+
+
+@task
+def server_copy_public_mods(ctx):  # noqa: ARG001
+    """Copy Mods/ from the sibling eco-mods-public repo into the local server."""
+    from eco_cycle_prep import server_local
+
+    server_local.copy_mods_from_sibling(server_local.PUBLIC_MODS_SIBLING)
+
+
+@task
+def server_copy_private_mods(ctx):  # noqa: ARG001
+    """Copy Mods/ from the sibling eco-mods repo into the local server."""
+    from eco_cycle_prep import server_local
+
+    server_local.copy_mods_from_sibling(server_local.PRIVATE_MODS_SIBLING)
+
+
+@task(
+    help={
+        "dll": "Path to the pre-built mod DLL",
+        "name": "Mods/<name>/ subdir (defaults to DLL stem)",
+    }
+)
+def server_deploy_mod(ctx, dll, name=None):  # noqa: ARG001
+    """Drop a pre-built mod DLL into Server/Mods/<name>/ on the local box."""
+    from pathlib import Path
+
+    from eco_cycle_prep import server_local
+
+    server_local.deploy_mod_dll(Path(dll), mod_name=name)
+
+
+@task(help={"seed": "Heightmap seed (default 0)"})
+def server_regen_new(ctx, seed=0):  # noqa: ARG001
+    """Wipe Storage + Logs; force a fresh random world at the given seed."""
+    from eco_cycle_prep import server_local
+
+    server_local.regen_new_world(seed=int(seed))
+
+
+@task
+def server_regen_same(ctx):  # noqa: ARG001
+    """Wipe Storage + Logs; keep the current WorldGenerator.eco seed."""
+    from eco_cycle_prep import server_local
+
+    server_local.regen_same_world()

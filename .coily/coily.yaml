@@ -70,3 +70,32 @@ commands:
   go-private:
     run: uv run inv go-private
     description: Inverse of go-live - re-privatize the running server. --restart=true default.
+
+  # --- local Eco server (Windows / Mac) ---
+  # Copied from coilysiren/infrastructure during the migration off that
+  # repo; kai-server still runs the infra copy until the remote side
+  # follows (see open issue on this repo).
+  server-run:
+    run: uv run inv server-run
+    description: Rewrite Configs for private-local dev then launch the local EcoServer. --offline optional.
+  server-launch:
+    run: uv run inv server-launch
+    description: Launch the local EcoServer as-is with no config rewrite. --offline optional.
+  server-copy-configs:
+    run: uv run inv server-copy-configs
+    description: Copy Configs/ from sibling eco-configs into the local Eco server.
+  server-copy-public-mods:
+    run: uv run inv server-copy-public-mods
+    description: Copy Mods/ from sibling eco-mods-public into the local Eco server.
+  server-copy-private-mods:
+    run: uv run inv server-copy-private-mods
+    description: Copy Mods/ from sibling eco-mods into the local Eco server.
+  server-deploy-mod:
+    run: uv run inv server-deploy-mod
+    description: Drop a pre-built mod DLL into the local Server/Mods/<name>/. --dll= required, --name= optional.
+  server-regen-new:
+    run: uv run inv server-regen-new
+    description: Wipe Storage + Logs and force a fresh random world on the local server. --seed=N optional.
+  server-regen-same:
+    run: uv run inv server-regen-same
+    description: Wipe Storage + Logs but keep the current WorldGenerator.eco seed.
