@@ -2,11 +2,29 @@
 
 import hashlib
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+from tenacity import (
+    Retrying,
+    retry_if_exception_type,
+    stop_after_delay,
+    wait_fixed,
+)
 
 PREVIEW_URL = "http://eco.coilysiren.me:3001/Layers/WorldPreview.gif"
+
+
+class _PreviewNotReady(Exception):
+    """Retryable: fetched bytes are missing, stale, or not yet stable."""
+
+
+@dataclass
+class _PollState:
+    last_hash: str = ""
+    last_bytes: bytes = b""
+    streak: int = 0
 
 
 def _fetch(discriminator: int | None = None) -> httpx.Response:
@@ -30,44 +48,48 @@ def wait_for_preview(
     - Ignores bytes whose hash matches `prior_hash` (stale cache from previous roll).
     - Waits until the same hash repeats `stable_polls` times in a row (i.e. render
       settled).
+    - On timeout, returns the last seen bytes if any; otherwise raises TimeoutError.
     """
-    deadline = time.monotonic() + total_timeout_s
-    last_hash: str | None = None
-    streak = 0
-    last_bytes: bytes | None = None
+    state = _PollState()
 
-    while time.monotonic() < deadline:
+    def _attempt() -> tuple[bytes, str]:
         try:
             r = _fetch()
-        except httpx.HTTPError:
-            time.sleep(poll_interval_s)
-            continue
+        except httpx.HTTPError as e:
+            raise _PreviewNotReady(f"fetch failed: {e}") from e
 
         if r.status_code != 200 or not r.content:
-            time.sleep(poll_interval_s)
-            continue
+            raise _PreviewNotReady(f"bad response: {r.status_code}, {len(r.content)} bytes")
 
         h = hashlib.sha256(r.content).hexdigest()
-
         if prior_hash and h == prior_hash:
-            # Stale preview left over from the previous world.
-            time.sleep(poll_interval_s)
-            continue
+            raise _PreviewNotReady("stale (matches prior_hash)")
 
-        if h == last_hash:
-            streak += 1
-            if streak >= stable_polls:
-                return r.content, h
+        if h == state.last_hash:
+            state.streak += 1
         else:
-            streak = 1
-            last_hash = h
-            last_bytes = r.content
+            state.last_hash = h
+            state.last_bytes = r.content
+            state.streak = 1
 
-        time.sleep(poll_interval_s)
+        if state.streak >= stable_polls:
+            return r.content, h
+        raise _PreviewNotReady(f"hash {h[:8]} only seen {state.streak} time(s)")
 
-    if last_bytes and last_hash:
-        # Took too long to stabilize; return what we've got so the user can decide.
-        return last_bytes, last_hash
+    try:
+        for attempt in Retrying(
+            retry=retry_if_exception_type(_PreviewNotReady),
+            stop=stop_after_delay(total_timeout_s),
+            wait=wait_fixed(poll_interval_s),
+            reraise=True,
+        ):
+            with attempt:
+                return _attempt()
+    except _PreviewNotReady:
+        if state.last_bytes and state.last_hash:
+            return state.last_bytes, state.last_hash
+        raise TimeoutError(f"Preview never became available within {total_timeout_s}s") from None
+
     raise TimeoutError(f"Preview never became available within {total_timeout_s}s")
 
 
