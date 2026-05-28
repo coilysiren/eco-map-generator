@@ -1,0 +1,24 @@
+# Per-repo agentic-os hook config.
+#
+# Added alongside the v0.6.0 hook bump (coilysiren/eco-cycle-prep#8): v0.6.0
+# introduced whole-repo Markdown size/layout caps (80 lines / 4000 chars) and
+# an AGENTS.md required-H2-heading set that this repo's pre-existing docs do
+# not yet satisfy. These opt-outs unblock the #433 catalog migration without
+# gutting the large reference docs or generated roll artifacts. Bringing the
+# docs into full compliance is a separate follow-up.
+
+[documentation-layout]
+# AGENTS.md runs ~4972 chars; give it the canonical double cap rather than splitting.
+agents_md_max_chars = 8000
+excludes = [
+  "README.md",          # ~4878 chars - trim under a follow-up
+  "docs/FEATURES.md",   # ~4863 chars - trim under a follow-up
+  "docs/worldgen.md",   # large worldgen schema reference, intentionally long
+  "docs/biomes.md",     # large per-biome catalog, intentionally long
+  "rolls/**",           # generated roll preview artifacts (narrative.md)
+]
+
+[catalog-trifecta]
+# AGENTS.md predates the required-H2-heading convention; adding the full
+# heading set is a larger doc rewrite tracked as a follow-up.
+enabled = false

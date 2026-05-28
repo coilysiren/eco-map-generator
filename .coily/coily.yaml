@@ -112,7 +112,6 @@ catalog:
   lifecycle: production
   description: "Cycle-prep automation for an Eco multiplayer server: worldgen rolls, Discord announcements, mod sync, community-intel digest."
   dependsOn:
-    - coilysiren/coily
-    - coilysiren/eco-mods-public
-    - coilysiren/infrastructure
-  providesApis: []
+    - forgejo.coilysiren.me/coilysiren/coily
+    - forgejo.coilysiren.me/coilysiren/eco-mods-public
+    - forgejo.coilysiren.me/coilysiren/infrastructure
